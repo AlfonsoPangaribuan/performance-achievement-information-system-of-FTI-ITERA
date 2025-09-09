@@ -209,6 +209,13 @@ class HomeRencanaStrategisAdminController extends Controller
                     },
                     'kegiatan.indikatorKinerja' => function (HasMany $query) use ($statusIndex, $periodInstance, $user): void {
                         $query->where('status', 'aktif')
+                            ->where(function (Builder $query) use ($user): void {
+                                if ($user->role === 'admin') {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                                } else {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'kk');
+                                }
+                            })
                             ->whereHas('target', function (Builder $query) use ($user): void {
                                 $query->whereBelongsTo($user->unit);
                             });
@@ -267,6 +274,13 @@ class HomeRencanaStrategisAdminController extends Controller
                 ->withCount([
                     'indikatorKinerja AS rowspan' => function (Builder $query) use ($statusIndex, $periodInstance, $user): void {
                         $query->where('status', 'aktif')
+                            ->where(function (Builder $query) use ($user): void {
+                                if ($user->role === 'admin') {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                                } else {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'kk');
+                                }
+                            })
                             ->whereHas('target', function (Builder $query) use ($user): void {
                                 $query->whereBelongsTo($user->unit);
                             });
@@ -290,12 +304,26 @@ class HomeRencanaStrategisAdminController extends Controller
                 ->withCount([
                     'indikatorKinerja AS all' => function (Builder $query) use ($user): void {
                         $query->where('status', 'aktif')
+                            ->where(function (Builder $query) use ($user): void {
+                                if ($user->role === 'admin') {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                                } else {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'kk');
+                                }
+                            })
                             ->whereHas('target', function (Builder $query) use ($user): void {
                                 $query->whereBelongsTo($user->unit);
                             });
                     },
                     'indikatorKinerja AS done' => function (Builder $query) use ($periodInstance, $user): void {
                         $query->where('status', 'aktif')
+                            ->where(function (Builder $query) use ($user): void {
+                                if ($user->role === 'admin') {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                                } else {
+                                    $query->where('indikator_kinerja.assigned_to_type', 'kk');
+                                }
+                            })
                             ->whereHas('target', function (Builder $query) use ($user): void {
                                 $query->whereBelongsTo($user->unit);
                             })
