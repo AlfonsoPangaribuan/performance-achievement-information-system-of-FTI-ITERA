@@ -1,42 +1,88 @@
 <x-super-admin-template title="Beranda Rencana Strategis - Super Admin">
 
     <x-partials.heading.h2 text="Rencana Strategis Tahun {{ $year }}" :$previousRoute />
-    <div class="flex w-full flex-col gap-1 text-xs sm:text-sm md:text-base 2xl:text-lg">
 
-        @foreach ($data as $ss)
-            <div class="flex w-full flex-col gap-1">
-                <h3>
-                    {{ $loop->iteration }}. {{ $ss->ss }}
-                </h3>
+    <!-- Admin Section -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold mb-4 text-primary">Data Admin</h3>
+        <div class="flex w-full flex-col gap-1 text-xs sm:text-sm md:text-base 2xl:text-lg">
+            @if($adminData->isEmpty())
+                <p class="text-gray-500 italic">Tidak ada data Indikator Kinerja untuk Admin</p>
+            @else
+                @foreach ($adminData as $ss)
+                    <div class="flex w-full flex-col gap-1">
+                        <h4>
+                            {{ $loop->iteration }}. {{ $ss->ss }}
+                        </h4>
 
-                @foreach ($ss->kegiatan as $k)
-                    <div
-                        class="flex w-full flex-col gap-1 border-l-2 border-dashed border-primary pl-2.5 md:pl-5 2xl:pl-8">
-                        <h5>
-                            {{ $loop->parent->iteration }}.{{ $loop->iteration }}. {{ $k->k }}
-                        </h5>
+                        @foreach ($ss->kegiatan as $k)
+                            <div class="flex w-full flex-col gap-1 border-l-2 border-dashed border-primary pl-2.5 md:pl-5 2xl:pl-8">
+                                <h5>
+                                    {{ $loop->parent->iteration }}.{{ $loop->iteration }}. {{ $k->k }}
+                                </h5>
 
-                        @foreach ($k->indikatorKinerja as $ik)
-                            <div
-                                class="flex w-full flex-col gap-1 border-l-2 border-dashed border-primary/90 pl-2.5 md:pl-5 2xl:pl-8">
-                                <h6>
-                                    {{ $loop->parent->parent->iteration }}.{{ $loop->parent->iteration }}.{{ $loop->iteration }}.
-                                    {{ $ik->ik }}
-                                </h6>
-                                <div class="flex w-full items-center justify-center overflow-x-auto">
-                                    <div class="aspect-video w-full min-w-96 max-w-screen-lg px-5">
-                                        <canvas id="chart-{{ $ik->id }}"></canvas>
+                                @foreach ($k->indikatorKinerja as $ik)
+                                    <div class="flex w-full flex-col gap-1 border-l-2 border-dashed border-primary/90 pl-2.5 md:pl-5 2xl:pl-8">
+                                        <h6>
+                                            {{ $loop->parent->parent->iteration }}.{{ $loop->parent->iteration }}.{{ $loop->iteration }}.
+                                            {{ $ik->ik }}
+                                        </h6>
+                                        <div class="flex w-full items-center justify-center overflow-x-auto">
+                                            <div class="aspect-video w-full min-w-96 max-w-screen-lg px-5">
+                                                <canvas id="admin-chart-{{ $ik->id }}"></canvas>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                @endforeach
                             </div>
                         @endforeach
-
                     </div>
                 @endforeach
+            @endif
+        </div>
+    </div>
 
-            </div>
-        @endforeach
+    <!-- KK Section -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold mb-4 text-primary">Data KK</h3>
+        <div class="flex w-full flex-col gap-1 text-xs sm:text-sm md:text-base 2xl:text-lg">
+            @if($kkData->isEmpty())
+                <p class="text-gray-500 italic">Tidak ada data Indikator Kinerja untuk KK</p>
+            @else
+                @foreach ($kkData as $ss)
+                    <div class="flex w-full flex-col gap-1">
+                        <h4>
+                            {{ $loop->iteration }}. {{ $ss->ss }}
+                        </h4>
 
+                        @foreach ($ss->kegiatan as $k)
+                            <div class="flex w-full flex-col gap-1 border-l-2 border-dashed border-primary pl-2.5 md:pl-5 2xl:pl-8">
+                                <h5>
+                                    {{ $loop->parent->iteration }}.{{ $loop->iteration }}. {{ $k->k }}
+                                </h5>
+
+                                @foreach ($k->indikatorKinerja as $ik)
+                                    <div class="flex w-full flex-col gap-1 border-l-2 border-dashed border-primary/90 pl-2.5 md:pl-5 2xl:pl-8">
+                                        <h6>
+                                            {{ $loop->parent->parent->iteration }}.{{ $loop->parent->iteration }}.{{ $loop->iteration }}.
+                                            {{ $ik->ik }}
+                                            @if($ik->unit)
+                                                <span class="text-sm text-gray-600">({{ $ik->unit->name }})</span>
+                                            @endif
+                                        </h6>
+                                        <div class="flex w-full items-center justify-center overflow-x-auto">
+                                            <div class="aspect-video w-full min-w-96 max-w-screen-lg px-5">
+                                                <canvas id="kk-chart-{{ $ik->id }}"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </div>
+                @endforeach
+            @endif
+        </div>
     </div>
 
     @push('script')
@@ -45,6 +91,7 @@
         <script>
             const setChart = (id, dataset) => {
                 const canvas = document.getElementById(id);
+                if (!canvas) return;
 
                 const chartOptions = {
                     type: 'bar',
@@ -79,8 +126,14 @@
                 new Chart(canvas, chartOptions);
             }
 
-            @foreach ($idLists->toArray() as $id)
-                setChart("chart-{{ $id }}", {!! json_encode($datasets->toArray()[$id]) !!});
+            // Admin charts
+            @foreach ($adminIdLists->toArray() as $id)
+                setChart("admin-chart-{{ $id }}", {!! json_encode($adminDatasets->toArray()[$id]) !!});
+            @endforeach
+
+            // KK charts
+            @foreach ($kkIdLists->toArray() as $id)
+                setChart("kk-chart-{{ $id }}", {!! json_encode($kkDatasets->toArray()[$id]) !!});
             @endforeach
         </script>
     @endpush

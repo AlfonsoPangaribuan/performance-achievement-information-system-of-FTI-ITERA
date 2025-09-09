@@ -83,19 +83,10 @@ class HomeRencanaStrategisAdminController extends Controller
         $currentPeriod = $currentMonth <= 6 ? '1' : '2';
         $currentYear = $currentDate->format('Y');
 
-        $years = RSPeriod::where('status', true)
-            ->whereHas('deadline', function (Builder $query) use ($currentPeriod, $currentYear): void {
-                $query->where('period', $currentPeriod)
-                    ->whereHas('year', function (Builder $query) use ($currentYear): void {
-                        $query->where('year', $currentYear);
-                    });
+        $years = RSYear::whereHas('periods', function (Builder $query): void {
+                $query->where('status', true);
             })
-            ->withAggregate('year AS year', 'year')
-            ->orderBy('year')
-            ->get()
             ->pluck('year')
-            ->flatten()
-            ->unique()
             ->toArray();
 
         if (count($years)) {
@@ -104,12 +95,6 @@ class HomeRencanaStrategisAdminController extends Controller
 
             $periods = $yearInstance->periods()
                 ->where('status', true)
-                ->whereHas('deadline', function (Builder $query) use ($currentPeriod, $currentYear): void {
-                    $query->where('period', $currentPeriod)
-                        ->whereHas('year', function (Builder $query) use ($currentYear): void {
-                            $query->where('year', $currentYear);
-                        });
-                })
                 ->orderBy('period')
                 ->pluck('period')
                 ->map(function ($item): array {
@@ -129,17 +114,26 @@ class HomeRencanaStrategisAdminController extends Controller
             $periodInstance = RSPeriod::where('status', true)
                 ->where('year_id', $yearInstance->id)
                 ->where('period', $period)
-                ->whereHas('deadline', function (Builder $query) use ($currentPeriod, $currentYear): void {
-                    $query->where('period', $currentPeriod)
-                        ->whereHas('year', function (Builder $query) use ($currentYear): void {
-                            $query->where('year', $currentYear);
-                        });
-                })
                 ->firstOrFail();
 
             $data = $yearInstance->sasaranStrategis()
                 ->whereHas('indikatorKinerja', function (Builder $query) use ($statusIndex, $periodInstance, $user): void {
-                    $query->where('status', 'aktif');
+                    $query->where('status', 'aktif')
+                        ->where(function (Builder $query) use ($user): void {
+                            if ($user->role === 'admin') {
+                                // Admin users see ONLY admin assignments
+                                $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                            } else {
+                                // KK users only see KK assignments for their unit
+                                $query->where('indikator_kinerja.assigned_to_type', 'kk')
+                                    ->where(function (Builder $kkQuery) use ($user): void {
+                                        $kkQuery->whereHas('target', function (Builder $targetQuery) use ($user): void {
+                                            $targetQuery->whereBelongsTo($user->unit);
+                                        })
+                                        ->orWhereJsonContains('indikator_kinerja.unit_id', $user->unit_id);
+                                    });
+                            }
+                        });
                     if ($statusIndex === 1) {
                         $query->whereDoesntHave('realization', function (Builder $query) use ($periodInstance, $user): void {
                             $query->whereBelongsTo($user->unit)
@@ -155,7 +149,17 @@ class HomeRencanaStrategisAdminController extends Controller
                 ->with([
                     'kegiatan' => function (HasMany $query) use ($statusIndex, $periodInstance, $user): void {
                         $query->whereHas('indikatorKinerja', function (Builder $query) use ($statusIndex, $periodInstance, $user): void {
-                            $query->where('status', 'aktif');
+                            $query->where('status', 'aktif')
+                                ->where(function (Builder $query) use ($user): void {
+                                    if ($user->role === 'admin') {
+                                        $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                                    } else {
+                                        $query->where('indikator_kinerja.assigned_to_type', 'kk');
+                                    }
+                                })
+                                ->whereHas('target', function (Builder $query) use ($user): void {
+                                    $query->whereBelongsTo($user->unit);
+                                });
                             if ($statusIndex === 1) {
                                 $query->whereDoesntHave('realization', function (Builder $query) use ($periodInstance, $user): void {
                                     $query->whereBelongsTo($user->unit)
@@ -178,7 +182,17 @@ class HomeRencanaStrategisAdminController extends Controller
                             ])
                             ->withCount([
                                 'indikatorKinerja AS rowspan' => function (Builder $query) use ($statusIndex, $periodInstance, $user): void {
-                                    $query->where('status', 'aktif');
+                                    $query->where('status', 'aktif')
+                                        ->where(function (Builder $query) use ($user): void {
+                                            if ($user->role === 'admin') {
+                                                $query->where('indikator_kinerja.assigned_to_type', 'admin');
+                                            } else {
+                                                $query->where('indikator_kinerja.assigned_to_type', 'kk');
+                                            }
+                                        })
+                                        ->whereHas('target', function (Builder $query) use ($user): void {
+                                            $query->whereBelongsTo($user->unit);
+                                        });
                                     if ($statusIndex === 1) {
                                         $query->whereDoesntHave('realization', function (Builder $query) use ($periodInstance, $user): void {
                                             $query->whereBelongsTo($user->unit)
@@ -194,6 +208,10 @@ class HomeRencanaStrategisAdminController extends Controller
                             ]);
                     },
                     'kegiatan.indikatorKinerja' => function (HasMany $query) use ($statusIndex, $periodInstance, $user): void {
+                        $query->where('status', 'aktif')
+                            ->whereHas('target', function (Builder $query) use ($user): void {
+                                $query->whereBelongsTo($user->unit);
+                            });
                         if ($statusIndex === 1) {
                             $query->whereDoesntHave('realization', function (Builder $query) use ($periodInstance, $user): void {
                                 $query->whereBelongsTo($user->unit)
@@ -205,8 +223,7 @@ class HomeRencanaStrategisAdminController extends Controller
                                     ->whereBelongsTo($periodInstance, 'period');
                             });
                         }
-                        $query->where('status', 'aktif')
-                            ->orderBy('number')
+                        $query->orderBy('number')
                             ->select([
                                 'name AS ik',
                                 'number',
@@ -249,7 +266,10 @@ class HomeRencanaStrategisAdminController extends Controller
                 ])
                 ->withCount([
                     'indikatorKinerja AS rowspan' => function (Builder $query) use ($statusIndex, $periodInstance, $user): void {
-                        $query->where('status', 'aktif');
+                        $query->where('status', 'aktif')
+                            ->whereHas('target', function (Builder $query) use ($user): void {
+                                $query->whereBelongsTo($user->unit);
+                            });
                         if ($statusIndex === 1) {
                             $query->whereDoesntHave('realization', function (Builder $query) use ($periodInstance, $user): void {
                                 $query->whereBelongsTo($user->unit)
@@ -268,11 +288,17 @@ class HomeRencanaStrategisAdminController extends Controller
 
             $allData = $yearInstance->sasaranStrategis()
                 ->withCount([
-                    'indikatorKinerja AS all' => function (Builder $query): void {
-                        $query->where('status', 'aktif');
+                    'indikatorKinerja AS all' => function (Builder $query) use ($user): void {
+                        $query->where('status', 'aktif')
+                            ->whereHas('target', function (Builder $query) use ($user): void {
+                                $query->whereBelongsTo($user->unit);
+                            });
                     },
                     'indikatorKinerja AS done' => function (Builder $query) use ($periodInstance, $user): void {
                         $query->where('status', 'aktif')
+                            ->whereHas('target', function (Builder $query) use ($user): void {
+                                $query->whereBelongsTo($user->unit);
+                            })
                             ->whereHas('realization', function (Builder $query) use ($periodInstance, $user): void {
                                 $query->whereBelongsTo($user->unit)
                                     ->whereBelongsTo($periodInstance, 'period');

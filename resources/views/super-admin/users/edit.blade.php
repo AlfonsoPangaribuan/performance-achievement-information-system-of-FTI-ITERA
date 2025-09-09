@@ -27,8 +27,9 @@
         <x-partials.input.text name="email" title="Email" value="{{ $user['email'] }}" required />
         <div class="*:p-2.5 max-sm:text-sm max-[320px]:text-xs">
             <div class="*:flex-1 *:rounded-lg *:p-1 *:bg-primary/80 flex gap-2.5 text-white">
-                <button id="super-admin-button" type="button" title="Tombol akses super admin" onclick="switchSelection('super-admin-button', 'admin-button')" class="hover:bg-primary/70">Super Admin</button>
-                <button id="admin-button" type="button" title="Tombol akses admin" onclick="switchSelection('admin-button', 'super-admin-button')" class="hover:bg-primary/70">Admin</button>
+                <button id="super-admin-button" type="button" title="Tombol akses super admin" onclick="switchSelection('super-admin-button', ['admin-button', 'kk-button'])" class="hover:bg-primary/70">Super Admin</button>
+                <button id="admin-button" type="button" title="Tombol akses admin" onclick="switchSelection('admin-button', ['super-admin-button', 'kk-button'])" class="hover:bg-primary/70">Admin</button>
+                <button id="kk-button" type="button" title="Tombol akses KK" onclick="switchSelection('kk-button', ['super-admin-button', 'admin-button'])" class="hover:bg-primary/70">KK</button>
             </div>
             <div id="selection" class="*:rounded-lg *:border *:border-slate-100 *:shadow *:p-1.5 *:gap-1 flex flex-wrap items-center justify-center gap-2 text-primary">
             </div>
@@ -69,10 +70,17 @@
             </div>
         </div>
         <div id="admin-selection">
-            <x-partials.input.select name="unit" title="Pilih unit" :$data />
+            <x-partials.input.select name="unit" title="Pilih unit" :data="$data" />
             <div class="flex items-center justify-center">
                 <input type="checkbox" title="Admin akses hanya melihat" name="access" id="viewer-admin" value="admin-viewer" class="rounded-md border-0 bg-primary/25 checked:bg-primary/80 focus:ring-primary/90" @checked($user['role'] === 'admin' && $user['access'] === 'viewer')>
                 <label for="viewer-admin" title="Admin akses hanya melihat">Hanya melihat</label>
+            </div>
+        </div>
+        <div id="kk-selection">
+            <x-partials.input.select name="unit" title="Pilih Unit" :data="$kk_data" />
+            <div class="flex items-center justify-center">
+                <input type="checkbox" title="Unit akses hanya melihat" name="access" id="viewer-kk" value="kk-viewer" class="rounded-md border-0 bg-primary/25 checked:bg-primary/80 focus:ring-primary/90" @checked($user['role'] === 'kk' && $user['access'] === 'viewer')>
+                <label for="viewer-kk" title="Unit akses hanya melihat">Hanya melihat</label>
             </div>
         </div>
     </div>
@@ -81,6 +89,12 @@
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('admin-button').click();
+            });
+        </script>
+    @elseif ($user['role'] === 'kk')
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('kk-button').click();
             });
         </script>
     @else
@@ -111,14 +125,31 @@
                 });
             }
 
-            function switchSelection(first, second) {
+            function switchSelection(first, others) {
                 document.getElementById(first).removeAttribute('onclick');
-                document.getElementById(second).setAttribute('onclick', `switchSelection('${ second }', '${ first }')`);
+                
+                if (Array.isArray(others)) {
+                    others.forEach(other => {
+                        document.getElementById(other).setAttribute('onclick', `switchSelection('${ other }', ['${ first }', '${ others.filter(o => o !== other).join("', '") }'])`);
+                        removeClass(other, ['outline', 'outline-2', 'outline-offset-1', 'outline-primary']);
+                    });
+                } else {
+                    document.getElementById(others).setAttribute('onclick', `switchSelection('${ others }', '${ first }')`);
+                    removeClass(others, ['outline', 'outline-2', 'outline-offset-1', 'outline-primary']);
+                }
 
                 addClass(first, ['outline', 'outline-2', 'outline-offset-1', 'outline-primary']);
-                removeClass(second, ['outline', 'outline-2', 'outline-offset-1', 'outline-primary']);
-
-                let newSelection = document.getElementById(first === 'super-admin-button' ? 'super-admin-selection' : 'admin-selection');
+                
+                let selectionId;
+                if (first === 'super-admin-button') {
+                    selectionId = 'super-admin-selection';
+                } else if (first === 'admin-button') {
+                    selectionId = 'admin-selection';
+                } else if (first === 'kk-button') {
+                    selectionId = 'kk-selection';
+                }
+                
+                let newSelection = document.getElementById(selectionId);
                 document.getElementById('selection').innerHTML = newSelection.innerHTML;
             }
         </script>

@@ -10,6 +10,7 @@ use Illuminate\Contracts\View\View;
 use App\Models\ProgramStrategis;
 use App\Models\SasaranKegiatan;
 use Illuminate\Http\Request;
+use App\Models\Unit;
 
 class HomeIndikatorKinerjaProgramSuperAdminController extends Controller
 {
@@ -52,7 +53,20 @@ class HomeIndikatorKinerjaProgramSuperAdminController extends Controller
                 'mode',
                 'type',
                 'id',
+                'assigned_to_type',
+                'unit_id',
             ]);
+
+        // Filter for KK users - only show data assigned to their unit or admin data
+        if ($user->role === 'kk') {
+            $data->where(function (Builder $query) use ($user) {
+                $query->where('assigned_to_type', 'admin')
+                      ->orWhere(function (Builder $q) use ($user) {
+                          $q->where('assigned_to_type', 'kk')
+                            ->whereJsonContains('unit_id', $user->unit_id);
+                      });
+            });
+        }
 
         $data->when(
             $searchQuery !== null,
@@ -71,7 +85,17 @@ class HomeIndikatorKinerjaProgramSuperAdminController extends Controller
             }
         );
 
-        $data = $data->orderBy('number')->get()->toArray();
+        $data = $data->orderBy('number')->get();
+
+        // Get units data for display
+        $units = Unit::pluck('name', 'id')->toArray();
+
+        // Add units data to each item for display
+        $data = $data->map(function ($item) use ($units) {
+            $itemArray = $item->toArray();
+            $itemArray['units'] = $units;
+            return $itemArray;
+        })->toArray();
 
         $sk = $sk->only([
             'number',

@@ -14,7 +14,9 @@ use App\Models\ProgramStrategis;
 use App\Models\SasaranKegiatan;
 use Illuminate\Support\Carbon;
 use App\Models\IKPColumn;
+use App\Models\IKUTarget;
 use App\Models\IKUYear;
+use App\Models\Unit;
 
 class FormatIndikatorKinerjaUtamaSuperAdminController extends Controller
 {
@@ -96,6 +98,8 @@ class FormatIndikatorKinerjaUtamaSuperAdminController extends Controller
                                             'mode',
                                             'name',
                                             'type',
+                                            'assigned_to_type',
+                                            'unit_id',
                                         ]),
 
                                         'program_strategis_id' => $psID,
@@ -135,6 +139,25 @@ class FormatIndikatorKinerjaUtamaSuperAdminController extends Controller
                     }
                     if (count($ikpInsertData)) {
                         IndikatorKinerjaProgram::insert($ikpInsertData);
+
+                        // Create targets for admin assigned ikp
+                        $adminIkpIds = collect($ikpInsertData)->where('assigned_to_type', 'admin')->pluck('id');
+                        if ($adminIkpIds->count()) {
+                            $allUnits = Unit::pluck('id')->toArray();
+                            $targetData = [];
+                            foreach ($adminIkpIds as $ikpId) {
+                                foreach ($allUnits as $unitId) {
+                                    $targetData[] = [
+                                        'indikator_kinerja_program_id' => $ikpId,
+                                        'unit_id' => $unitId,
+                                        'target' => 0,
+                                        'created_at' => $currentDate,
+                                        'updated_at' => $currentDate,
+                                    ];
+                                }
+                            }
+                            IKUTarget::insert($targetData);
+                        }
                     }
                     if (count($ikpColumnInsertData)) {
                         IKPColumn::insert($ikpColumnInsertData);

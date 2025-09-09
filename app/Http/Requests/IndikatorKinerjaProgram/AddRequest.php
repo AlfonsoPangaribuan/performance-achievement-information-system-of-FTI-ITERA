@@ -34,6 +34,8 @@ class AddRequest extends FormRequest
             'columns.*' => ['bail', 'string', 'max:500'],
             'type' => ['bail', 'required', 'in:iku,ikt'],
             'columns' => ['bail', 'nullable', 'array'],
+            'assigned_to_type' => ['bail', 'required', 'in:admin,kk'],
+            'unit_id' => ['bail', 'required_if:assigned_to_type,kk', 'exists:units,id'],
         ];
     }
 
@@ -52,6 +54,8 @@ class AddRequest extends FormRequest
             'number' => 'Nomor',
             'file' => 'File',
             'mode' => 'Mode',
+            'assigned_to_type' => 'Tugaskan kepada',
+            'unit_id' => 'Unit',
         ];
     }
 }

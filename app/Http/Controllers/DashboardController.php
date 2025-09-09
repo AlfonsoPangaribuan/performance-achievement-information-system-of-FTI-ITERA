@@ -25,25 +25,43 @@ class DashboardController extends Controller
 
         $datasets = collect();
         $idLists = collect();
-        $data = $yearInstance->sasaranKegiatan()
-            ->whereRelation('indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram', 'status', 'aktif')
+
+        // Get data for Admin (no assignment or assigned_to_type = 'admin')
+        $adminData = $yearInstance->sasaranKegiatan()
+            ->whereRelation('indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram', function ($query) {
+                $query->where('status', 'aktif')
+                      ->where(function ($q) {
+                          $q->whereNull('assigned_to_type')
+                            ->orWhere('assigned_to_type', 'admin');
+                      });
+            })
             ->with([
                 'indikatorKinerjaKegiatan' => function (HasMany $query): void {
-                    $query->whereRelation('programStrategis.indikatorKinerjaProgram', 'status', 'aktif')
+                    $query->whereRelation('programStrategis.indikatorKinerjaProgram', function ($q) {
+                        $q->where('status', 'aktif')
+                          ->where(function ($sq) {
+                              $sq->whereNull('assigned_to_type')
+                                ->orWhere('assigned_to_type', 'admin');
+                          });
+                    })
                         ->select([
                             'name AS ikk',
                             'id',
-
                             'sasaran_kegiatan_id',
                         ])
                         ->orderBy('number');
                 },
                 'indikatorKinerjaKegiatan.programStrategis' => function (HasMany $query): void {
-                    $query->whereRelation('indikatorKinerjaProgram', 'status', 'aktif')
+                    $query->whereRelation('indikatorKinerjaProgram', function ($q) {
+                        $q->where('status', 'aktif')
+                          ->where(function ($sq) {
+                              $sq->whereNull('assigned_to_type')
+                                ->orWhere('assigned_to_type', 'admin');
+                          });
+                    })
                         ->select([
                             'name AS ps',
                             'id',
-
                             'indikator_kinerja_kegiatan_id',
                         ])
                         ->orderBy('number');
@@ -53,10 +71,67 @@ class DashboardController extends Controller
                         'name AS ikp',
                         'mode',
                         'id',
-
                         'program_strategis_id',
                     ])
                         ->where('status', 'aktif')
+                        ->where(function ($q) {
+                            $q->whereNull('assigned_to_type')
+                              ->orWhere('assigned_to_type', 'admin');
+                        })
+                        ->orderBy('number');
+                },
+                'indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram.singleAchievements',
+                'indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram.achievements',
+                'indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram.target',
+            ])
+            ->select([
+                'name AS sk',
+                'id',
+            ])
+            ->orderBy('number')
+            ->get();
+
+        // Get data for KK (assigned_to_type = 'kk')
+        $kkData = $yearInstance->sasaranKegiatan()
+            ->whereRelation('indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram', function ($query) {
+                $query->where('status', 'aktif')
+                      ->where('assigned_to_type', 'kk');
+            })
+            ->with([
+                'indikatorKinerjaKegiatan' => function (HasMany $query): void {
+                    $query->whereRelation('programStrategis.indikatorKinerjaProgram', function ($q) {
+                        $q->where('status', 'aktif')
+                          ->where('assigned_to_type', 'kk');
+                    })
+                        ->select([
+                            'name AS ikk',
+                            'id',
+                            'sasaran_kegiatan_id',
+                        ])
+                        ->orderBy('number');
+                },
+                'indikatorKinerjaKegiatan.programStrategis' => function (HasMany $query): void {
+                    $query->whereRelation('indikatorKinerjaProgram', function ($q) {
+                        $q->where('status', 'aktif')
+                          ->where('assigned_to_type', 'kk');
+                    })
+                        ->select([
+                            'name AS ps',
+                            'id',
+                            'indikator_kinerja_kegiatan_id',
+                        ])
+                        ->orderBy('number');
+                },
+                'indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram' => function (HasMany $query): void {
+                    $query->select([
+                        'name AS ikp',
+                        'mode',
+                        'id',
+                        'program_strategis_id',
+                        'unit_id',
+                    ])
+                        ->where('status', 'aktif')
+                        ->where('assigned_to_type', 'kk')
                         ->orderBy('number');
                 },
                 'indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram.singleAchievements',
@@ -111,41 +186,26 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
+        // Process Admin data
+        $adminDatasets = collect();
+        $adminIdLists = collect();
+        $this->processIkuData($adminData, $adminIdLists, $adminDatasets, $units);
 
-        $data->each(function ($item) use ($idLists, $datasets, $units): void {
-            $item->indikatorKinerjaKegiatan->each(function ($item) use ($idLists, $datasets, $units): void {
-                $item->programStrategis->each(function ($item) use ($idLists, $datasets, $units): void {
-                    $item->indikatorKinerjaProgram->each(function ($item) use ($idLists, $datasets, $units): void {
-                        $realizationTemp = collect();
-                        $targetTemp = collect();
-                        $unitTemp = collect();
-                        $units->each(function ($unit) use ($realizationTemp, $targetTemp, $unitTemp, $item): void {
-                            if ($item->mode === IndikatorKinerjaProgram::MODE_TABLE) {
-                                $realizationTemp->push($item->achievements->where('unit_id', $unit->id)->where('status', true)->count());
-                            } else {
-                                $realizationTemp->push($item->singleAchievements->where('unit_id', $unit->id)->average('value'));
-                            }
-                            $targetTemp->push($item->target->firstWhere('unit_id', $unit->id)?->target ?? 0);
-                            $unitTemp->push($unit->short_name);
-                        });
-                        $datasets->put($item->id, [
-                            'realization' => $realizationTemp->toArray(),
-                            'target' => $targetTemp->toArray(),
-                            'unit' => $unitTemp->toArray(),
-                        ]);
-                        $idLists->push($item->id);
-                    });
-                });
-            });
-        });
+        // Process KK data
+        $kkDatasets = collect();
+        $kkIdLists = collect();
+        $this->processIkuData($kkData, $kkIdLists, $kkDatasets, $units);
 
         $previousRoute = route('super-admin-dashboard', ['ikuYear' => $year]);
 
         return view('super-admin.dashboard.iku', compact([
             'previousRoute',
-            'datasets',
-            'idLists',
-            'data',
+            'adminDatasets',
+            'adminIdLists',
+            'adminData',
+            'kkDatasets',
+            'kkIdLists',
+            'kkData',
             'year',
         ]));
     }
@@ -161,15 +221,28 @@ class DashboardController extends Controller
 
         $datasets = collect();
         $idLists = collect();
-        $data = $yearInstance->sasaranStrategis()
-            ->whereRelation('kegiatan.indikatorKinerja', 'status', 'aktif')
+
+        // Get data for Admin (no assignment or assigned_to_type = 'admin')
+        $adminData = $yearInstance->sasaranStrategis()
+            ->whereRelation('kegiatan.indikatorKinerja', function ($query) {
+                $query->where('status', 'aktif')
+                      ->where(function ($q) {
+                          $q->whereNull('assigned_to_type')
+                            ->orWhere('assigned_to_type', 'admin');
+                      });
+            })
             ->with([
                 'kegiatan' => function (HasMany $query): void {
-                    $query->whereRelation('indikatorKinerja', 'status', 'aktif')
+                    $query->whereRelation('indikatorKinerja', function ($q) {
+                        $q->where('status', 'aktif')
+                          ->where(function ($sq) {
+                              $sq->whereNull('assigned_to_type')
+                                ->orWhere('assigned_to_type', 'admin');
+                          });
+                    })
                         ->select([
                             'name AS k',
                             'id',
-
                             'sasaran_strategis_id',
                         ])
                         ->orderBy('number');
@@ -179,10 +252,55 @@ class DashboardController extends Controller
                         'name AS ik',
                         'type',
                         'id',
-
                         'kegiatan_id',
                     ])
                         ->where('status', 'aktif')
+                        ->where(function ($q) {
+                            $q->whereNull('assigned_to_type')
+                              ->orWhere('assigned_to_type', 'admin');
+                        })
+                        ->orderBy('number');
+                },
+                'kegiatan.indikatorKinerja.textSelections',
+                'kegiatan.indikatorKinerja.realization',
+                'kegiatan.indikatorKinerja.target',
+            ])
+            ->select([
+                'name AS ss',
+                'id',
+            ])
+            ->orderBy('number')
+            ->get();
+
+        // Get data for KK (assigned_to_type = 'kk')
+        $kkData = $yearInstance->sasaranStrategis()
+            ->whereRelation('kegiatan.indikatorKinerja', function ($query) {
+                $query->where('status', 'aktif')
+                      ->where('assigned_to_type', 'kk');
+            })
+            ->with([
+                'kegiatan' => function (HasMany $query): void {
+                    $query->whereRelation('indikatorKinerja', function ($q) {
+                        $q->where('status', 'aktif')
+                          ->where('assigned_to_type', 'kk');
+                    })
+                        ->select([
+                            'name AS k',
+                            'id',
+                            'sasaran_strategis_id',
+                        ])
+                        ->orderBy('number');
+                },
+                'kegiatan.indikatorKinerja' => function (HasMany $query): void {
+                    $query->select([
+                        'name AS ik',
+                        'type',
+                        'id',
+                        'kegiatan_id',
+                        'unit_id',
+                    ])
+                        ->where('status', 'aktif')
+                        ->where('assigned_to_type', 'kk')
                         ->orderBy('number');
                 },
                 'kegiatan.indikatorKinerja.textSelections',
@@ -228,7 +346,35 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
+        // Process Admin data
+        $adminDatasets = collect();
+        $adminIdLists = collect();
+        $this->processRsData($adminData, $adminIdLists, $adminDatasets, $units);
 
+        // Process KK data
+        $kkDatasets = collect();
+        $kkIdLists = collect();
+        $this->processRsData($kkData, $kkIdLists, $kkDatasets, $units);
+
+        $previousRoute = route('super-admin-dashboard', ['rsYear' => $year]);
+
+        return view('super-admin.dashboard.rs', compact([
+            'previousRoute',
+            'adminDatasets',
+            'adminIdLists',
+            'adminData',
+            'kkDatasets',
+            'kkIdLists',
+            'kkData',
+            'year',
+        ]));
+    }
+
+    /**
+     * Process RS data for charts
+     */
+    private function processRsData($data, $idLists, $datasets, $units): void
+    {
         $data->each(function ($item) use ($idLists, $datasets, $units): void {
             $item->kegiatan->each(function ($item) use ($idLists, $datasets, $units): void {
                 $item->indikatorKinerja->each(function ($item) use ($idLists, $datasets, $units): void {
@@ -257,15 +403,38 @@ class DashboardController extends Controller
                 });
             });
         });
+    }
 
-        $previousRoute = route('super-admin-dashboard', ['rsYear' => $year]);
-
-        return view('super-admin.dashboard.rs', compact([
-            'previousRoute',
-            'datasets',
-            'idLists',
-            'data',
-            'year',
-        ]));
+    /**
+     * Process IKU data for charts
+     */
+    private function processIkuData($data, $idLists, $datasets, $units): void
+    {
+        $data->each(function ($item) use ($idLists, $datasets, $units): void {
+            $item->indikatorKinerjaKegiatan->each(function ($item) use ($idLists, $datasets, $units): void {
+                $item->programStrategis->each(function ($item) use ($idLists, $datasets, $units): void {
+                    $item->indikatorKinerjaProgram->each(function ($item) use ($idLists, $datasets, $units): void {
+                        $realizationTemp = collect();
+                        $targetTemp = collect();
+                        $unitTemp = collect();
+                        $units->each(function ($unit) use ($realizationTemp, $targetTemp, $unitTemp, $item): void {
+                            if ($item->mode === IndikatorKinerjaProgram::MODE_TABLE) {
+                                $realizationTemp->push($item->achievements->where('unit_id', $unit->id)->where('status', true)->count());
+                            } else {
+                                $realizationTemp->push($item->singleAchievements->where('unit_id', $unit->id)->average('value'));
+                            }
+                            $targetTemp->push($item->target->firstWhere('unit_id', $unit->id)?->target ?? 0);
+                            $unitTemp->push($unit->short_name);
+                        });
+                        $datasets->put($item->id, [
+                            'realization' => $realizationTemp->toArray(),
+                            'target' => $targetTemp->toArray(),
+                            'unit' => $unitTemp->toArray(),
+                        ]);
+                        $idLists->push($item->id);
+                    });
+                });
+            });
+        });
     }
 }

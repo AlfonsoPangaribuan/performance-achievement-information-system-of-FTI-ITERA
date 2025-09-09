@@ -31,6 +31,8 @@ class AddRequest extends FormRequest
             'name' => ['bail', 'required', 'string', 'max:65000'],
             'selection.*' => ['bail', 'string', 'max:255'],
             'selection' => ['bail', 'nullable', 'array'],
+            'assigned_to_type' => ['bail', 'required', 'in:admin,kk'],
+            'unit_id' => ['bail', 'required_if:assigned_to_type,kk', 'exists:units,id'],
         ];
     }
 
@@ -45,6 +47,8 @@ class AddRequest extends FormRequest
             'selection' => 'Pilihan',
             'type' => 'Tipe data',
             'number' => 'Nomor',
+            'assigned_to_type' => 'Tugaskan kepada',
+            'unit_id' => 'Unit',
         ];
     }
 }

@@ -64,4 +64,9 @@ class Unit extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function kks(): HasMany
+    {
+        return $this->hasMany(KK::class);
+    }
 }

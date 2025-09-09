@@ -38,7 +38,7 @@ class RSPeriod extends Model
 
     public function deadline(): BelongsTo
     {
-        return $this->belongsTo(RSPeriod::class);
+        return $this->belongsTo(RSPeriod::class, 'deadline_id');
     }
 
     public function year(): BelongsTo

@@ -35,6 +35,7 @@ class User extends Authenticatable
         'role',
 
         'unit_id',
+        'kk_id',
     ];
 
     /**
@@ -69,6 +70,11 @@ class User extends Authenticatable
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function kk(): BelongsTo
+    {
+        return $this->belongsTo(KK::class);
     }
 
 

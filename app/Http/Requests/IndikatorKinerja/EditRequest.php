@@ -27,6 +27,9 @@ class EditRequest extends FormRequest
         return [
             'number' => ['bail', 'required', 'numeric', 'integer', 'min:1', 'max_digits:10'],
             'name' => ['bail', 'required', 'string', 'max:65000'],
+            'assigned_to_type' => ['bail', 'required', 'in:admin,kk'],
+            'unit_id' => ['bail', 'required_if:assigned_to_type,kk', 'array'],
+            'unit_id.*' => ['bail', 'exists:units,id'],
         ];
     }
 
@@ -39,6 +42,8 @@ class EditRequest extends FormRequest
         return [
             'name' => 'Indikator kinerja',
             'number' => 'Nomor',
+            'assigned_to_type' => 'Tugaskan kepada',
+            'unit_id' => 'Unit',
         ];
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\ProgramStrategis;
 use App\Models\SasaranKegiatan;
 use Illuminate\Support\Carbon;
+use App\Models\Unit;
 
 class UpdateIndikatorKinerjaProgramSuperAdminController extends Controller
 {
@@ -83,12 +84,34 @@ class UpdateIndikatorKinerjaProgramSuperAdminController extends Controller
             'name',
             'id',
         ]);
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->map(function ($unit) use ($ikp): array {
+                    $data = $unit->toArray();
+                    if (is_array($ikp->unit_id) && in_array($unit->value, $ikp->unit_id)) {
+                        $data['selected'] = true;
+                    }
+                    return $data;
+                })
+                ->toArray()
+        ];
+
         $ikp = $ikp->only([
             'definition',
             'status',
             'mode',
             'name',
             'id',
+            'assigned_to_type',
+            'unit_id',
         ]);
 
         return view('super-admin.iku.ikp.edit', compact([
@@ -97,6 +120,7 @@ class UpdateIndikatorKinerjaProgramSuperAdminController extends Controller
             'current',
             'types',
             'data',
+            'units',
             'ikk',
             'ikp',
             'ps',
@@ -147,6 +171,61 @@ class UpdateIndikatorKinerjaProgramSuperAdminController extends Controller
             $ikp->name = $request['name'];
             $ikp->type = $request['type'];
 
+            // Handle assignment changes
+            $oldAssignedToType = $ikp->assigned_to_type;
+            $newAssignedToType = $request['assigned_to_type'];
+
+            if ($oldAssignedToType !== $newAssignedToType) {
+                // Delete existing targets when changing assignment type
+                $ikp->target()->forceDelete();
+
+                if ($newAssignedToType === 'admin') {
+                    $ikp->unit_id = null;
+                    // Create targets for all units
+                    $allUnits = Unit::pluck('id')->toArray();
+                    foreach ($allUnits as $unitId) {
+                        $ikp->target()->create([
+                            'unit_id' => $unitId,
+                            'target' => 0,
+                        ]);
+                    }
+                } elseif ($newAssignedToType === 'kk') {
+                    $unitIds = $request['unit_id'] ?? [];
+                    $ikp->unit_id = array_filter($unitIds);
+                    // Create targets for selected units
+                    foreach ($ikp->unit_id as $unitId) {
+                        $ikp->target()->create([
+                            'unit_id' => $unitId,
+                            'target' => 0,
+                        ]);
+                    }
+                }
+            } else {
+                // Same assignment type, check if unit_id changed for KK
+                if ($newAssignedToType === 'kk') {
+                    $newUnitIds = $request['unit_id'] ?? [];
+                    $newUnitIds = array_filter($newUnitIds);
+                    $oldUnitIds = $ikp->unit_id ?? [];
+
+                    if ($oldUnitIds !== $newUnitIds) {
+                        // Delete existing targets
+                        $ikp->target()->forceDelete();
+
+                        // Update unit_id
+                        $ikp->unit_id = $newUnitIds;
+
+                        // Create new targets
+                        foreach ($newUnitIds as $unitId) {
+                            $ikp->target()->create([
+                                'unit_id' => $unitId,
+                                'target' => 0,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            $ikp->assigned_to_type = $newAssignedToType;
             $ikp->save();
 
             DB::commit();

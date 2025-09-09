@@ -18,7 +18,7 @@ class Admin
     {
         if (auth()->check()) {
             $user = User::find(auth()->user()->id);
-            if ($user->role === 'admin' && $user->unit()->exists()) {
+            if (($user->role === 'admin' || $user->role === 'kk') && $user->unit()->exists()) {
                 return $next($request);
             }
 

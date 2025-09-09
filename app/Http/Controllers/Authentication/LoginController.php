@@ -30,7 +30,7 @@ class LoginController extends Controller
         $user = User::where('email', $request['email'])->first();
 
         if ($user) {
-            if ($user->role === 'admin' && $user->unit()->doesntExist()) {
+            if (($user->role === 'admin' || $user->role === 'kk') && $user->unit()->doesntExist()) {
                 return _ControllerHelpers::BackWithInputWithErrors(['email' => 'Akun tidak valid']);
             }
 

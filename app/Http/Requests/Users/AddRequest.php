@@ -25,10 +25,11 @@ class AddRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'access' => ['bail', 'nullable', 'in:super-admin-editor,super-admin-viewer,admin-viewer'],
+            'access' => ['bail', 'nullable', 'in:super-admin-editor,super-admin-viewer,admin-viewer,kk-viewer'],
             'email' => ['bail', 'required', 'string', 'max:255', 'email', 'unique:users'],
             'name' => ['bail', 'required', 'string', 'max:255'],
             'unit' => ['bail', 'nullable', 'exists:units,id'],
+            'kk' => ['bail', 'nullable', 'exists:kks,id'],
         ];
     }
 
@@ -42,7 +43,8 @@ class AddRequest extends FormRequest
             'email' => 'Alamat email pengguna',
             'access' => 'Akses pengguna',
             'name' => 'Nama pengguna',
-            'unit' => 'Unit'
+            'unit' => 'Unit',
+            'kk' => 'KK'
         ];
     }
 }

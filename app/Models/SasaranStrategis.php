@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use App\Models\Unit;
 
 class SasaranStrategis extends Model
 {
@@ -38,6 +39,11 @@ class SasaranStrategis extends Model
     public function time(): BelongsTo
     {
         return $this->belongsTo(RSYear::class);
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 
 

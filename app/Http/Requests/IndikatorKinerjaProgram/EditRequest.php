@@ -29,6 +29,9 @@ class EditRequest extends FormRequest
             'definition' => ['bail', 'required', 'string', 'max:65000'],
             'name' => ['bail', 'required', 'string', 'max:65000'],
             'type' => ['bail', 'required', 'in:iku,ikt'],
+            'assigned_to_type' => ['bail', 'required', 'in:admin,kk'],
+            'unit_id' => ['bail', 'required_if:assigned_to_type,kk', 'array'],
+            'unit_id.*' => ['bail', 'exists:units,id'],
         ];
     }
 
@@ -43,6 +46,8 @@ class EditRequest extends FormRequest
             'name' => 'Program strategis',
             'type' => 'Tipe pendukung',
             'number' => 'Nomor',
+            'assigned_to_type' => 'Tugaskan kepada',
+            'unit_id' => 'Unit',
         ];
     }
 }

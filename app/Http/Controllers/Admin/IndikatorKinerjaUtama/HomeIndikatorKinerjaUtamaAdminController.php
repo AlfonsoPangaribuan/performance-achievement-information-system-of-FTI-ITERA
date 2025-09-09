@@ -48,13 +48,10 @@ class HomeIndikatorKinerjaUtamaAdminController extends Controller
             }
         }
 
-        $years = IKUPeriod::where('status', true)
-            ->whereDate('deadline', '>=', $currentDate)
-            ->withAggregate('year AS year', 'year')
-            ->orderBy('year')
+        $years = IKUYear::whereHas('periods', function (Builder $query) use ($currentDate): void {
+                $query->where('status', true);
+            })
             ->pluck('year')
-            ->flatten()
-            ->unique()
             ->toArray();
 
         $periods = [];
@@ -70,7 +67,6 @@ class HomeIndikatorKinerjaUtamaAdminController extends Controller
 
             $periods = $yearInstance->periods()
                 ->where('status', true)
-                ->whereDate('deadline', '>=', $currentDate)
                 ->orderBy('period')
                 ->pluck('period')
                 ->map(function ($item): array {
@@ -91,19 +87,48 @@ class HomeIndikatorKinerjaUtamaAdminController extends Controller
 
             $period = $periodRequest ?? $periods->last()['value'];
             $periodInstance = $yearInstance->periods()
-                ->whereDate('deadline', '>=', $currentDate)
                 ->where('period', $period)
                 ->where('status', true)
                 ->firstOrFail();
 
             $data = $yearInstance->sasaranKegiatan()
-                ->whereHas('indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram', function (Builder $query): void {
-                    $query->where('status', 'aktif');
+                ->whereHas('indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram', function (Builder $query) use ($user): void {
+                    $query->where('status', 'aktif')
+                        ->where(function (Builder $query) use ($user): void {
+                            if ($user->role === 'admin') {
+                                // Admin users see ONLY admin assignments
+                                $query->where('assigned_to_type', 'admin');
+                            } else {
+                                // KK users only see KK assignments for their unit
+                                $query->where('assigned_to_type', 'kk')
+                                    ->where(function (Builder $kkQuery) use ($user): void {
+                                        $kkQuery->whereHas('target', function (Builder $targetQuery) use ($user): void {
+                                            $targetQuery->whereBelongsTo($user->unit);
+                                        })
+                                        ->orWhereJsonContains('unit_id', $user->unit_id);
+                                    });
+                            }
+                        });
                 })
                 ->with([
-                    'indikatorKinerjaKegiatan' => function (HasMany $query): void {
-                        $query->whereHas('programStrategis.indikatorKinerjaProgram', function (Builder $query): void {
-                            $query->where('status', 'aktif');
+                    'indikatorKinerjaKegiatan' => function (HasMany $query) use ($user): void {
+                        $query->whereHas('programStrategis.indikatorKinerjaProgram', function (Builder $query) use ($user): void {
+                            $query->where('status', 'aktif')
+                                ->where(function (Builder $query) use ($user): void {
+                                    if ($user->role === 'admin') {
+                                        // Admin users see ONLY admin assignments
+                                        $query->where('assigned_to_type', 'admin');
+                                    } else {
+                                        // KK users only see KK assignments for their unit
+                                        $query->where('assigned_to_type', 'kk')
+                                            ->where(function (Builder $kkQuery) use ($user): void {
+                                                $kkQuery->whereHas('target', function (Builder $targetQuery) use ($user): void {
+                                                    $targetQuery->whereBelongsTo($user->unit);
+                                                })
+                                                ->orWhereJsonContains('unit_id', $user->unit_id);
+                                            });
+                                    }
+                                });
                         })
                             ->orderBy('number')
                             ->select([
@@ -113,9 +138,24 @@ class HomeIndikatorKinerjaUtamaAdminController extends Controller
                                 'sasaran_kegiatan_id',
                             ]);
                     },
-                    'indikatorKinerjaKegiatan.programStrategis' => function (HasMany $query): void {
-                        $query->whereHas('indikatorKinerjaProgram', function (Builder $query): void {
-                            $query->where('status', 'aktif');
+                    'indikatorKinerjaKegiatan.programStrategis' => function (HasMany $query) use ($user): void {
+                        $query->whereHas('indikatorKinerjaProgram', function (Builder $query) use ($user): void {
+                            $query->where('status', 'aktif')
+                                ->where(function (Builder $query) use ($user): void {
+                                    if ($user->role === 'admin') {
+                                        // Admin users see ONLY admin assignments
+                                        $query->where('assigned_to_type', 'admin');
+                                    } else {
+                                        // KK users only see KK assignments for their unit
+                                        $query->where('assigned_to_type', 'kk')
+                                            ->where(function (Builder $kkQuery) use ($user): void {
+                                                $kkQuery->whereHas('target', function (Builder $targetQuery) use ($user): void {
+                                                    $targetQuery->whereBelongsTo($user->unit);
+                                                })
+                                                ->orWhereJsonContains('unit_id', $user->unit_id);
+                                            });
+                                    }
+                                });
                         })
                             ->orderBy('number')
                             ->select([
@@ -125,13 +165,43 @@ class HomeIndikatorKinerjaUtamaAdminController extends Controller
                                 'indikator_kinerja_kegiatan_id',
                             ])
                             ->withCount([
-                                'indikatorKinerjaProgram AS rowspan' => function (Builder $query): void {
-                                    $query->where('status', 'aktif');
+                                'indikatorKinerjaProgram AS rowspan' => function (Builder $query) use ($user): void {
+                                    $query->where('status', 'aktif')
+                                        ->where(function (Builder $query) use ($user): void {
+                                            if ($user->role === 'admin') {
+                                                // Admin users see ONLY admin assignments
+                                                $query->where('assigned_to_type', 'admin');
+                                            } else {
+                                                // KK users only see KK assignments for their unit
+                                                $query->where('assigned_to_type', 'kk')
+                                                    ->where(function (Builder $kkQuery) use ($user): void {
+                                                        $kkQuery->whereHas('target', function (Builder $targetQuery) use ($user): void {
+                                                            $targetQuery->whereBelongsTo($user->unit);
+                                                        })
+                                                        ->orWhereJsonContains('unit_id', $user->unit_id);
+                                                    });
+                                            }
+                                        });
                                 }
                             ]);
                     },
                     'indikatorKinerjaKegiatan.programStrategis.indikatorKinerjaProgram' => function (HasMany $query) use ($periodInstance, $user): void {
                         $query->where('status', 'aktif')
+                            ->where(function (Builder $query) use ($user): void {
+                                if ($user->role === 'admin') {
+                                    // Admin users see ONLY admin assignments
+                                    $query->where('assigned_to_type', 'admin');
+                                } else {
+                                    // KK users only see KK assignments for their unit
+                                    $query->where('assigned_to_type', 'kk')
+                                        ->where(function (Builder $kkQuery) use ($user): void {
+                                            $kkQuery->whereHas('target', function (Builder $targetQuery) use ($user): void {
+                                                $targetQuery->whereBelongsTo($user->unit);
+                                            })
+                                            ->orWhereJsonContains('unit_id', $user->unit_id);
+                                        });
+                                }
+                            })
                             ->orderBy('number')
                             ->select([
                                 'name AS ikp',
@@ -147,6 +217,11 @@ class HomeIndikatorKinerjaUtamaAdminController extends Controller
                                     $query->whereBelongsTo($user->unit);
                                 }
                             ], 'target')
+                            ->withExists([
+                                'target AS hasTarget' => function (Builder $query) use ($user): void {
+                                    $query->whereBelongsTo($user->unit);
+                                }
+                            ])
                             ->withAggregate([
                                 'unitStatus AS unitStatus' => function (Builder $query) use ($periodInstance, $user): void {
                                     $query->whereBelongsTo($user->unit)

@@ -39,6 +39,26 @@ class UpdateUserSuperAdminController extends Controller
                 })
                 ->toArray()
         ];
+        
+        $kk_data = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->map(function ($unit) use ($user): array {
+                    $data = $unit->toArray();
+                    if ($unit->value === $user->unit_id) {
+                        $data['selected'] = true;
+                    }
+                    return $data;
+                })
+                ->toArray()
+        ];
 
         $user = $user->only([
             'access',
@@ -46,10 +66,12 @@ class UpdateUserSuperAdminController extends Controller
             'name',
             'role',
             'id',
+            'kk_id',
         ]);
 
         return view('super-admin.users.edit', compact([
             'data',
+            'kk_data',
             'user',
         ]));
     }
@@ -76,13 +98,28 @@ class UpdateUserSuperAdminController extends Controller
         if (in_array($request['access'], ['super-admin-editor', 'super-admin-viewer'])) {
             $user->role = 'super admin';
             $user->unit_id = null;
+            $user->kk_id = null;
 
             $user->access = 'viewer';
             if ($request['access'] === 'super-admin-editor') {
                 $user->access = 'editor';
             }
+        } else if ($request['access'] === 'kk-viewer' || isset($request['unit'])) {
+            $user->role = 'kk';
+            $user->unit_id = null;
+            $user->kk_id = null;
+
+            $user->access = 'viewer';
+            if (!isset($request['access'])) {
+                $user->access = 'editor';
+            }
+
+            if (isset($request['unit'])) {
+                $user->unit_id = $request['unit'];
+            }
         } else {
             $user->role = 'admin';
+            $user->kk_id = null;
 
             $user->access = 'viewer';
             if (!isset($request['access'])) {

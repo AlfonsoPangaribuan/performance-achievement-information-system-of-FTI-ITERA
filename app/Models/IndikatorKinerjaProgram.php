@@ -31,6 +31,12 @@ class IndikatorKinerjaProgram extends Model
         'type',
 
         'program_strategis_id',
+        'assigned_to_type',
+        'unit_id',
+    ];
+
+    protected $casts = [
+        'unit_id' => 'array',
     ];
 
     // 'mode' values
@@ -47,6 +53,11 @@ class IndikatorKinerjaProgram extends Model
     public function programStrategis(): BelongsTo
     {
         return $this->belongsTo(ProgramStrategis::class);
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 
 

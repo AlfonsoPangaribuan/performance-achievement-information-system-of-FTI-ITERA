@@ -43,6 +43,7 @@
                 <x-partials.input.text name="name" title="Indikator kinerja kegiatan" value="{{ old('name') }}" autofocus required />
             </div>
         </div>
+
         <x-partials.button.add style="ml-auto" submit />
     </form>
 </x-super-admin-template>

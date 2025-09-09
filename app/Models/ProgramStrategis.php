@@ -22,6 +22,7 @@ class ProgramStrategis extends Model
     protected $fillable = [
         'number',
         'name',
+        'status',
 
         'indikator_kinerja_kegiatan_id',
     ];

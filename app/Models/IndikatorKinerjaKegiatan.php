@@ -24,6 +24,7 @@ class IndikatorKinerjaKegiatan extends Model
     protected $fillable = [
         'number',
         'name',
+        'status',
 
         'sasaran_kegiatan_id',
     ];

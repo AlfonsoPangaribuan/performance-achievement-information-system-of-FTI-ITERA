@@ -12,6 +12,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProgramStrategis;
 use App\Models\SasaranKegiatan;
+use App\Models\Unit;
 
 class CreateProgramStrategisSuperAdminController extends Controller
 {
@@ -53,10 +54,24 @@ class CreateProgramStrategisSuperAdminController extends Controller
             'id',
         ]);
 
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->toArray()
+        ];
+
         return view('super-admin.iku.ps.add', compact([
             'data',
             'ikk',
             'sk',
+            'units'
         ]));
     }
 
@@ -89,7 +104,12 @@ class CreateProgramStrategisSuperAdminController extends Controller
                     ->increment('number');
             }
 
-            $ps = new ProgramStrategis($request->safe()->all());
+            $data = $request->safe()->only(['number', 'name']);
+
+            // Set default values for Program Strategis (no assignment needed at this level)
+            $data['status'] = 'aktif'; // Default status
+
+            $ps = new ProgramStrategis($data);
 
             $ps->indikatorKinerjaKegiatan()->associate($ikk);
             $ps->save();

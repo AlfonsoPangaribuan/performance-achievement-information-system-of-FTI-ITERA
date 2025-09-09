@@ -25,6 +25,7 @@ class SasaranKegiatan extends Model
     protected $fillable = [
         'number',
         'name',
+        'status',
 
         'time_id',
     ];

@@ -32,7 +32,7 @@ class CreateUserSuperAdminController extends Controller
                 ->get()
                 ->toArray()
         ];
-
+        
         return view('super-admin.users.add', compact('data'));
     }
 
@@ -45,15 +45,31 @@ class CreateUserSuperAdminController extends Controller
         if (in_array($request['access'], ['super-admin-editor', 'super-admin-viewer'])) {
             $request['role'] = 'super admin';
             $request['unit_id'] = null;
+            $request['kk_id'] = null;
 
             $access = 'viewer';
             if ($request['access'] === 'super-admin-editor') {
                 $access = 'editor';
             }
             $request['access'] = $access;
+        } else if ($request['access'] === 'kk-viewer' || isset($request['unit'])) {
+            $request['role'] = 'kk';
+            $request['unit_id'] = null;
+            $request['kk_id'] = null;
+
+            $access = 'viewer';
+            if (!isset($request['access'])) {
+                $access = 'editor';
+            }
+            $request['access'] = $access;
+
+            if (isset($request['unit'])) {
+                $request['unit_id'] = $request['unit'];
+            }
         } else {
             $request['role'] = 'admin';
             $request['unit_id'] = null;
+            $request['kk_id'] = null;
 
             $access = 'viewer';
             if (!isset($request['access'])) {
@@ -76,8 +92,8 @@ class CreateUserSuperAdminController extends Controller
                 'email',
                 'name',
                 'role',
-
                 'unit_id',
+                'kk_id',
             ]));
 
             DB::commit();

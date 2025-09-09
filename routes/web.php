@@ -92,6 +92,11 @@ use App\Http\Controllers\SuperAdmin\Unit\CreateUnitSuperAdminController;
 use App\Http\Controllers\SuperAdmin\Unit\DeleteUnitSuperAdminController;
 use App\Http\Controllers\SuperAdmin\Unit\UpdateUnitSuperAdminController;
 use App\Http\Controllers\SuperAdmin\Unit\HomeUnitSuperAdminController;
+// KK - Super Admin
+use App\Http\Controllers\SuperAdmin\KK\CreateKKSuperAdminController;
+use App\Http\Controllers\SuperAdmin\KK\DeleteKKSuperAdminController;
+use App\Http\Controllers\SuperAdmin\KK\UpdateKKSuperAdminController;
+use App\Http\Controllers\SuperAdmin\KK\HomeKKSuperAdminController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -326,6 +331,19 @@ Route::prefix('super-admin')->middleware('superadmin')->group(function (): void 
         Route::put('{unit}/ubah', [UpdateUnitSuperAdminController::class, 'action']);
 
         Route::get('{unit}/hapus', [DeleteUnitSuperAdminController::class, 'action']);
+    });
+
+
+    Route::prefix('kk')->middleware('editor')->group(function (): void {
+        Route::get('/', [HomeKKSuperAdminController::class, 'view'])->name('super-admin-kk');
+
+        Route::get('tambah', [CreateKKSuperAdminController::class, 'view'])->name('super-admin-kk-add');
+        Route::post('tambah', [CreateKKSuperAdminController::class, 'action']);
+
+        Route::get('{kk}/ubah', [UpdateKKSuperAdminController::class, 'view'])->name('super-admin-kk-edit');
+        Route::put('{kk}/ubah', [UpdateKKSuperAdminController::class, 'action']);
+
+        Route::get('{kk}/hapus', [DeleteKKSuperAdminController::class, 'action']);
     });
 });
 

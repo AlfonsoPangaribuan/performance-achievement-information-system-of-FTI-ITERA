@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use App\Models\Kegiatan;
+use App\Models\Unit;
 
 class CreateIndikatorKinerjaSuperAdminController extends Controller
 {
@@ -68,11 +69,25 @@ class CreateIndikatorKinerjaSuperAdminController extends Controller
             ],
         ];
 
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->toArray()
+        ];
+
         return view('super-admin.rs.ik.add', compact([
             'data',
             'type',
             'ss',
-            'k'
+            'k',
+            'units'
         ]));
     }
 
@@ -105,12 +120,46 @@ class CreateIndikatorKinerjaSuperAdminController extends Controller
                     ->increment('number');
             }
 
-            $ik = new IndikatorKinerja($request->safe()->all());
+            $data = $request->safe()->all();
+
+            if ($data['assigned_to_type'] === 'admin') {
+                $data['unit_id'] = null;
+            } elseif ($data['assigned_to_type'] === 'kk') {
+                // Handle multiple units - if KK is selected, ensure all units are assigned
+                if (isset($data['unit_id']) && is_array($data['unit_id'])) {
+                    $data['unit_id'] = array_filter($data['unit_id']); // Remove empty values
+                } else {
+                    // If no units selected but KK is chosen, assign all units
+                    $allUnits = Unit::pluck('id')->toArray();
+                    $data['unit_id'] = $allUnits;
+                }
+            }
+
+            $ik = new IndikatorKinerja($data);
 
             $ik->kegiatan()->associate($k);
             $ik->status = 'aktif';
 
             $ik->save();
+
+            // Create target records for assigned units
+            if ($data['assigned_to_type'] === 'admin') {
+                // For admin, create targets for all units
+                $allUnits = Unit::pluck('id')->toArray();
+                foreach ($allUnits as $unitId) {
+                    $ik->target()->create([
+                        'unit_id' => $unitId,
+                        'target' => 0, // Default target value
+                    ]);
+                }
+            } elseif ($data['assigned_to_type'] === 'kk' && isset($data['unit_id']) && is_array($data['unit_id'])) {
+                foreach ($data['unit_id'] as $unitId) {
+                    $ik->target()->create([
+                        'unit_id' => $unitId,
+                        'target' => 0, // Default target value
+                    ]);
+                }
+            }
 
             if ($ik->type === 'teks') {
                 $options = ['A', 'TA'];

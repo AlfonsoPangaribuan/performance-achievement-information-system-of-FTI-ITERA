@@ -11,6 +11,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use App\Models\SasaranKegiatan;
 use App\Models\IKUYear;
+use App\Models\Unit;
 
 class CreateSasaranKegiatanSuperAdminController extends Controller
 {
@@ -35,7 +36,20 @@ class CreateSasaranKegiatanSuperAdminController extends Controller
             'selected' => true,
         ];
 
-        return view('super-admin.iku.sk.add', compact('data'));
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->toArray()
+        ];
+
+        return view('super-admin.iku.sk.add', compact('data', 'units'));
     }
 
     /**
@@ -62,7 +76,12 @@ class CreateSasaranKegiatanSuperAdminController extends Controller
                     ->increment('number');
             }
 
-            $sk = new SasaranKegiatan($request->safe()->all());
+            $data = $request->safe()->only(['number', 'name']);
+
+            // Set default values for Sasaran Kegiatan (no assignment needed at this level)
+            $data['status'] = 'aktif'; // Default status
+
+            $sk = new SasaranKegiatan($data);
 
             $sk->time()->associate($time);
             $sk->save();

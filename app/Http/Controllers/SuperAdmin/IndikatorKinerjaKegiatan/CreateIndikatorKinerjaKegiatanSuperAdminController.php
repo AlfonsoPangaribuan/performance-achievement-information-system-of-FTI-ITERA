@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use App\Models\SasaranKegiatan;
+use App\Models\Unit;
 
 class CreateIndikatorKinerjaKegiatanSuperAdminController extends Controller
 {
@@ -42,9 +43,23 @@ class CreateIndikatorKinerjaKegiatanSuperAdminController extends Controller
             'id',
         ]);
 
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->toArray()
+        ];
+
         return view('super-admin.iku.ikk.add', compact([
             'data',
             'sk',
+            'units'
         ]));
     }
 
@@ -72,7 +87,12 @@ class CreateIndikatorKinerjaKegiatanSuperAdminController extends Controller
                     ->increment('number');
             }
 
-            $ikk = new IndikatorKinerjaKegiatan($request->safe()->all());
+            $data = $request->safe()->only(['number', 'name']);
+
+            // Set default values for Indikator Kinerja Kegiatan (no assignment needed at this level)
+            $data['status'] = 'aktif'; // Default status
+
+            $ikk = new IndikatorKinerjaKegiatan($data);
 
             $ikk->sasaranKegiatan()->associate($sk);
             $ikk->save();

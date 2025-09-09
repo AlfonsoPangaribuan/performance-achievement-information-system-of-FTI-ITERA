@@ -13,6 +13,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProgramStrategis;
 use App\Models\SasaranKegiatan;
+use App\Models\Unit;
 
 class CreateIndikatorKinerjaProgramSuperAdminController extends Controller
 {
@@ -68,12 +69,26 @@ class CreateIndikatorKinerjaProgramSuperAdminController extends Controller
             'id',
         ]);
 
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->toArray()
+        ];
+
         return view('super-admin.iku.ikp.add', compact([
             'types',
             'data',
             'ikk',
             'ps',
             'sk',
+            'units'
         ]));
     }
 
@@ -107,13 +122,38 @@ class CreateIndikatorKinerjaProgramSuperAdminController extends Controller
                     ->increment('number');
             }
 
-            $ikp = new IndikatorKinerjaProgram($request->safe()->except('columns', 'file', 'mode'));
+            $data = $request->safe()->except('columns', 'file', 'mode');
+
+            if ($data['assigned_to_type'] === 'admin') {
+                $data['unit_id'] = null;
+            } elseif ($data['assigned_to_type'] === 'kk') {
+                // Handle multiple units - if KK is selected, ensure all units are assigned
+                if (isset($data['unit_id']) && is_array($data['unit_id'])) {
+                    $data['unit_id'] = array_filter($data['unit_id']); // Remove empty values
+                } else {
+                    // If no units selected but KK is chosen, assign all units
+                    $allUnits = Unit::pluck('id')->toArray();
+                    $data['unit_id'] = $allUnits;
+                }
+            }
+
+            $ikp = new IndikatorKinerjaProgram($data);
 
             $ikp->programStrategis()->associate($ps);
             $ikp->mode = $request['mode'] ?? IndikatorKinerjaProgram::MODE_TABLE;
             $ikp->status = 'aktif';
 
             $ikp->save();
+
+            // Create target records for assigned units
+            if ($data['assigned_to_type'] === 'kk' && isset($data['unit_id']) && is_array($data['unit_id'])) {
+                foreach ($data['unit_id'] as $unitId) {
+                    $ikp->target()->create([
+                        'unit_id' => $unitId,
+                        'target' => 0, // Default target value
+                    ]);
+                }
+            }
 
             if ($ikp->mode === IndikatorKinerjaProgram::MODE_TABLE) {
                 $index = 1;

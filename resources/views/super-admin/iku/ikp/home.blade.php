@@ -110,6 +110,7 @@
                     <th title="Indikator kinerja program">Indikator Kinerja Program</th>
                     <th title="Definisi operasional">Definisi Operasional</th>
                     <th title="Mode">Mode</th>
+                    <th title="Ditugaskan kepada">Ditugaskan kepada</th>
 
                     @if ($user->isEditor())
                         <th title="Status">Status</th>
@@ -143,6 +144,15 @@
                         <td title="{{ $item['definition'] }}" class="w-max min-w-72 text-left">
                             {{ $item['definition'] }}</td>
                         <td title="{{ $item['mode'] }}" class="capitalize">{{ $item['mode'] }}</td>
+                        <td title="Ditugaskan kepada">
+                            @if($item['assigned_to_type'] === 'kk' && $item['unit_id'] && is_array($item['unit_id']))
+                                <span class="text-blue-600">KK ({{ collect($item['unit_id'])->map(fn($id) => $item['units'][$id] ?? 'Unknown')->join(', ') }})</span>
+                            @elseif($item['assigned_to_type'] === 'kk' && !empty($item['unit_id']))
+                                <span class="text-blue-600">KK ({{ $item['units'][$item['unit_id']] ?? 'Unknown' }})</span>
+                            @else
+                                <span class="text-green-600">Admin</span>
+                            @endif
+                        </td>
 
                         @if ($user->isEditor())
                             <td title="{{ $item['status'] }}">

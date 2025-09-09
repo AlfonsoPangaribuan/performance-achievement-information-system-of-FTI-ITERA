@@ -13,6 +13,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\SasaranStrategis;
 use Illuminate\Support\Carbon;
 use App\Models\Kegiatan;
+use App\Models\Unit;
 
 class UpdateIndikatorKinerjaSuperAdminController extends Controller
 {
@@ -51,6 +52,26 @@ class UpdateIndikatorKinerjaSuperAdminController extends Controller
 
         $type = [['value' => $ik->type, 'text' => ucfirst($ik->type)]];
 
+        $units = [
+            [
+                'value' => '',
+                'text' => 'Pilih Unit'
+            ],
+            ...Unit::select([
+                'name AS text',
+                'id AS value',
+            ])
+                ->get()
+                ->map(function ($unit) use ($ik): array {
+                    $data = $unit->toArray();
+                    if (is_array($ik->unit_id) && in_array($unit->value, $ik->unit_id)) {
+                        $data['selected'] = true;
+                    }
+                    return $data;
+                })
+                ->toArray()
+        ];
+
         $ss = $ss->only([
             'number',
             'name',
@@ -67,6 +88,8 @@ class UpdateIndikatorKinerjaSuperAdminController extends Controller
             'name',
             'type',
             'id',
+            'assigned_to_type',
+            'unit_id',
         ]);
 
         return view('super-admin.rs.ik.edit', compact([
@@ -74,6 +97,7 @@ class UpdateIndikatorKinerjaSuperAdminController extends Controller
             'current',
             'data',
             'type',
+            'units',
             'ik',
             'ss',
             'k',
@@ -119,6 +143,62 @@ class UpdateIndikatorKinerjaSuperAdminController extends Controller
             }
 
             $ik->name = $request['name'];
+
+            // Handle assignment changes
+            $oldAssignedToType = $ik->assigned_to_type;
+            $newAssignedToType = $request['assigned_to_type'];
+
+            if ($oldAssignedToType !== $newAssignedToType) {
+                // Delete existing targets when changing assignment type
+                $ik->target()->forceDelete();
+
+                if ($newAssignedToType === 'admin') {
+                    $ik->unit_id = null;
+                    // Create targets for all units
+                    $allUnits = Unit::pluck('id')->toArray();
+                    foreach ($allUnits as $unitId) {
+                        $ik->target()->create([
+                            'unit_id' => $unitId,
+                            'target' => 0,
+                        ]);
+                    }
+                } elseif ($newAssignedToType === 'kk') {
+                    $unitIds = $request['unit_id'] ?? [];
+                    $ik->unit_id = array_filter($unitIds);
+                    // Create targets for selected units
+                    foreach ($ik->unit_id as $unitId) {
+                        $ik->target()->create([
+                            'unit_id' => $unitId,
+                            'target' => 0,
+                        ]);
+                    }
+                }
+            } else {
+                // Same assignment type, check if unit_id changed for KK
+                if ($newAssignedToType === 'kk') {
+                    $newUnitIds = $request['unit_id'] ?? [];
+                    $newUnitIds = array_filter($newUnitIds);
+                    $oldUnitIds = $ik->unit_id ?? [];
+
+                    if ($oldUnitIds !== $newUnitIds) {
+                        // Delete existing targets
+                        $ik->target()->forceDelete();
+
+                        // Update unit_id
+                        $ik->unit_id = $newUnitIds;
+
+                        // Create new targets
+                        foreach ($newUnitIds as $unitId) {
+                            $ik->target()->create([
+                                'unit_id' => $unitId,
+                                'target' => 0,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            $ik->assigned_to_type = $newAssignedToType;
             $ik->save();
 
             DB::commit();

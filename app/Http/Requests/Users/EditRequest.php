@@ -28,9 +28,10 @@ class EditRequest extends FormRequest
     {
         return [
             'email' => ['bail', 'required', 'string', 'max:255', 'email', new Unique(new User(), 'user')],
-            'access' => ['bail', 'nullable', 'in:super-admin-editor,super-admin-viewer,admin-viewer'],
+            'access' => ['bail', 'nullable', 'in:super-admin-editor,super-admin-viewer,admin-viewer,kk-viewer'],
             'name' => ['bail', 'required', 'string', 'max:255'],
             'unit' => ['bail', 'nullable', 'exists:units,id'],
+            'kk' => ['bail', 'nullable', 'exists:kks,id'],
         ];
     }
 
@@ -44,7 +45,8 @@ class EditRequest extends FormRequest
             'email' => 'Alamat email pengguna',
             'access' => 'Akses pengguna',
             'name' => 'Nama pengguna',
-            'unit' => 'Unit'
+            'unit' => 'Unit',
+            'kk' => 'KK'
         ];
     }
 }

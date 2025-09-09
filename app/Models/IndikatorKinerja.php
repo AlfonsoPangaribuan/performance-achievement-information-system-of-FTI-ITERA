@@ -29,6 +29,12 @@ class IndikatorKinerja extends Model
         'type',
 
         'kegiatan_id',
+        'assigned_to_type',
+        'unit_id',
+    ];
+
+    protected $casts = [
+        'unit_id' => 'array',
     ];
 
     // 'type' values
@@ -46,6 +52,11 @@ class IndikatorKinerja extends Model
     public function kegiatan(): BelongsTo
     {
         return $this->belongsTo(Kegiatan::class);
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 
 

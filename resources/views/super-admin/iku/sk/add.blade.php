@@ -32,6 +32,9 @@
                 <x-partials.input.text name="name" title="Sasaran kegiatan" value="{{ old('name') }}" autofocus required />
             </div>
         </div>
+
+
         <x-partials.button.add style="ml-auto" submit />
     </form>
+
 </x-super-admin-template>
